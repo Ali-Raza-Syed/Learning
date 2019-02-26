@@ -20,6 +20,11 @@ index = 13
 plt.imshow(train_set_x_orig[index])
 print("y = " + str(train_set_y[:, index]) + ", it's a '" + classes[np.squeeze(train_set_y[:, index])].decode("utf-8") +  "' picture.")
 
+#%% Sigmoid functiono definition
+# x --> number to calculare sigmoid of
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
 #%% Function for calculating output of Logistic Regression unit
 # image --> image of shape (height, width, num_of_channels)
 # weights --> weights to be multiplied of shape (num_of_weights, 1)
@@ -57,3 +62,4 @@ image = np.array([[[1, 2], [3, 4]],
 weights = np.array([[12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]]).T
 bias = 2.5
 logistic_output = logistic_unit_output(image, weights, bias)
+print(sigmoid(2))
