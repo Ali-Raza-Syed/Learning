@@ -1,2 +1,7 @@
+-Feb 27, 2019
+-3ede19032195b0b3aa9d2d74da059ce236b01532
+	-Completed backpropagation method (need to test it though)
+	-All functions are written for single image only
+-Feb 26, 2019
 -c18c323570b4cd0ed3365ebe576041c6489f56c3
 	-Completed output calculation of logistic regression unit
