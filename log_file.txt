@@ -1,3 +1,7 @@
+-Feb 28, 2019
+-51dcb32f1e63b858d36198d510ad30e46ec51212
+	-Implemented model fitting/training function. Observing gradient explosion in it.
+	-weight and bias clipping code is commented out in calculate_derivatives function.
 -Feb 27, 2019
 -3ede19032195b0b3aa9d2d74da059ce236b01532
 	-Completed backpropagation method (need to test it though)
