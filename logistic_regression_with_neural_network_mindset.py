@@ -87,11 +87,9 @@ def calculate_derivatives(network_input, network_output, true_output):
     #derivate of Loss w.r.t bias
     db = dz
     
-# =============================================================================
-#     dw[np.abs(dw) > 1e-1] = 0
-#     if db > 1e-1:
-#         db = 0
-# =============================================================================
+    dw[np.abs(dw) > 1e-1] = 0
+    if db > 1e-1:
+        db = 0
     
     derivatives_dictionary = {'dw': dw, 'db': db}
     return derivatives_dictionary
@@ -165,4 +163,4 @@ print("y = " + str(train_set_y[:, index]) + ", it's a '" + classes[np.squeeze(tr
 
 image = train_set_x_orig[index]
 
-train_on_single_image(image, epochs=10000, learning_rate=1e-6, seed=1, true_output=1)
+train_on_single_image(image, epochs=10000, learning_rate=1e-2, seed=1, true_output=1)

@@ -1,3 +1,10 @@
+-Mar 4, 2019
+-0034f5c1a7b029dc3208a94d6a0095ce754852f2
+	-Animating multiple lines graph on single matplotlib figure
+-Mar 1, 2019
+-e397ae056b94054ce88892b7c4f4ae469c817458
+	-Implemented simple line approximation for a single point
+	-Making an animation for it using matplotlib
 -Feb 28, 2019
 -51dcb32f1e63b858d36198d510ad30e46ec51212
 	-Implemented model fitting/training function. Observing gradient explosion in it.
