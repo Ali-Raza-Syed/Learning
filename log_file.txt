@@ -1,3 +1,6 @@
+-Mar 6, 2019
+-839c3a0dc61f83593b585a0fa99ab42bece54ac9
+	-3d plots for sine wave and plane created
 -Mar 4, 2019
 -0034f5c1a7b029dc3208a94d6a0095ce754852f2
 	-Animating multiple lines graph on single matplotlib figure
