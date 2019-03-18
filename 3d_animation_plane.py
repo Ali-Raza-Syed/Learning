@@ -17,8 +17,8 @@ import matplotlib
 X1 = np.arange(-20, 20, 0.25)
 X2 = np.arange(-20, 20, 0.25)
 X1, X2 = np.meshgrid(X1, X2)
-w1, w2 = 100, 100
-Z = w1*X1 + w2*X2
+w1, w2, b = 100, 100, 100
+Z = w1*X1 + w2*X2 + b
 
 learning_rate = 0.001
 p_x1 = 2
@@ -26,6 +26,7 @@ p_x2 = 3
 p_z = 10
 dw1 = 0
 dw2 = 0
+db = 0
 
 # Attaching 3D axis to the figure
 fig = plt.figure()
@@ -34,20 +35,21 @@ ax = p3.Axes3D(fig)
 surf = [ax.plot_surface(X1, X2, Z, alpha = 0.5), ax.scatter([p_x1], [p_x2], p_z, c=[0], cmap=matplotlib.colors.ListedColormap(['red']))]
 
 ax.set_title('3D Test')
-ax.set_zlim(-100, 100)
+ax.set_zlim(-1000, 1000)
 
 def update_lines(i, surf, x) :
-    global w1, w2, dw1, dw2
+    global w1, w2, b, dw1, dw2, db
     
     dw1 = p_x1 * (2*p_x1*w1 + 2*p_x2*w2 - 2*p_z)
     dw2 = p_x2 * (2*p_x1*w1 + 2*p_x2*w2 - 2*p_z)
+    db = 2*p_x1*w1 + 2*p_x2*w2 - 2*p_z
     
     w1 = w1 - learning_rate*dw1
     w2 = w2 - learning_rate*dw2
     
-    Z = w1*X1 + w2*X2
-    
-    J = (p_x1*w1 + p_x2*w2 - p_z)**2
+    Z = w1*X1 + w2*X2 + b
+    Z[Z < 0] = 0
+    J = (p_x1*w1 + p_x2*w2 + b - p_z)**2
     print(J)
 #    Z[Z < i] = 0
     surf[0].remove()

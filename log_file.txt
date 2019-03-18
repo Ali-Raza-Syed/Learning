@@ -1,3 +1,6 @@
+-Mar 7, 2019
+-84f5812e1beb96df1b60aaee89ceec67184e597b
+	-3D animation for approximating plane to a point completed
 -Mar 6, 2019
 -839c3a0dc61f83593b585a0fa99ab42bece54ac9
 	-3d plots for sine wave and plane created
