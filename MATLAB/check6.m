@@ -1,9 +1,15 @@
 % two inputs with 3 first layer nodes with thresholding and ReLU activation
-
-W = ( -1 + (1-(-1)).*rand(2, 5)* 1e1 );
-
-b = ( -1 + (1-(-1)).*rand(5, 1)* 1e1 );
-
+seed = 1;
+rng(seed);
+% W = ( -1 + (1-(-1)).*rand(2, 3)* 1e1 );
+W = [2e-1, -3e-1, -5e-1, -1e-1, -2e-1;
+    3e-1, -2e-1, 1e-1, -2e-1, -1e-1];
+% b = ( -1 + (1-(-1)).*rand(3, 1)* 1e1 );
+b = [1e-1;
+    10e-1;
+    10e-1;
+    2e-1;
+    3e-1];
 % w1 = 2e-1;
 % w2 = 3e-1;
 % b1 = 1e-1;
@@ -19,9 +25,11 @@ x1 = -1:0.02:1;
 x2 = -1:0.02:1;
 
 threshold = 1;
-
+rng(seed);
 p_x1 = 0 + (1-0).*rand(1, 20);
+rng(seed);
 p_x2 = 0 + (1-0).*rand(1, 20);
+rng(seed);
 p_z = 0 + (1-0).*rand(1, 20);
 
 P = [p_x1; p_x2];
@@ -177,8 +185,9 @@ while true
     
     Z = zeros(size(X1));
     for i = 1 : size(W, 2)
-        Z = Z + X1.*W(1, i) + X2.*W(2, i) + b(i);
-        Z(Z < 0) = 0;
+        Z_temp = X1.*W(1, i) + X2.*W(2, i) + b(i);
+        Z_temp(Z_temp < 0) = 0;
+        Z = Z + Z_temp;
     end
 
 %     Z1 = X1.*W(1, 1) + X2.*W(2, 1) + b(1);

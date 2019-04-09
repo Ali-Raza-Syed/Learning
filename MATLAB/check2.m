@@ -1,5 +1,6 @@
 % two inputs with 3 first layer nodes with thresholding and ReLU activation
-
+seed = 1;
+rng(seed);
 w1 = 2e-1;
 w2 = 3e-1;
 b1 = 1e-1;
@@ -14,9 +15,11 @@ x1 = -1:0.02:1;
 x2 = -1:0.02:1;
 
 threshold = 1;
-
+rng(seed);
 p_x1 = 0 + (1-0).*rand(1, 20);
+rng(seed);
 p_x2 = 0 + (1-0).*rand(1, 20);
+rng(seed);
 p_z = 0 + (1-0).*rand(1, 20);
 dw1 = 0;
 dw2 = 0;
@@ -94,15 +97,15 @@ while true
         
     end
     
-    dw1 = dw1/10;
-    dw2 = dw2/10;
-    dw3 = dw3/10;
-    dw4 = dw4/10;
-    dw5 = dw5/10;
-    dw6 = dw6/10;
-    db1 = db1/10;
-    db2 = db2/10;
-    db3 = db3/10;
+    dw1 = dw1/20;
+    dw2 = dw2/20;
+    dw3 = dw3/20;
+    dw4 = dw4/20;
+    dw5 = dw5/20;
+    dw6 = dw6/20;
+    db1 = db1/20;
+    db2 = db2/20;
+    db3 = db3/20;
     
     dw1(dw1 > threshold) = threshold;
     dw2(dw2 > threshold) = threshold;
@@ -141,5 +144,5 @@ while true
     
     
     surf_handle.ZData = Y_cap;
-    pause(0.1);
+    pause(0.01);
 end
