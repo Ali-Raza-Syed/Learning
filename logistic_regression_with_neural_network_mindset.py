@@ -23,7 +23,7 @@ from lr_utils import load_dataset
     # -parameters_dictionary --> final parameters dictionary after model fitting,
     #                            {'weights': weights matrix of shape (number of image nodes or pixels, 1),
     #                            'bias': bias, a float}
-def train_on_single_image(image, epochs=1000, learning_rate=0.01, seed=None, true_output=1):
+def train_on_single_image(image, epochs=1000, learning_rate=0.01, seed=None, true_output=1, print_loss=False):
     linearized_image = linearize_image(image)
     num_of_weights = linearized_image.shape[0]
     
@@ -36,7 +36,7 @@ def train_on_single_image(image, epochs=1000, learning_rate=0.01, seed=None, tru
         network_output = logistic_unit_output(image, parameters_dictionary)
         derivatives_dictionary = calculate_derivatives(image, network_output, true_output)
         parameters_dictionary = update_parameters(parameters_dictionary, derivatives_dictionary, learning_rate)
-        if np.mod(i, 100) == 0:
+        if np.mod(i, 100) == 0 and print_loss:
             print('epoch = ', i, ' Network Output =', network_output, ', Loss = ', calculate_loss(network_output, true_output))
             
     return parameters_dictionary
@@ -150,6 +150,16 @@ def logistic_unit_output(image, parameters_dictionary):
     
     return sigmoid_output
 
+#%%Function to test model
+# input:
+    # -image --> image of shape (height, width, num_of_channels)
+    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of weights, 1), 
+    #                                              'bias': bias, a number}
+    
+# output:
+    # -logistic unit output, a number
+def test_model(image, parameters_dictionary):
+    return logistic_unit_output(image, parameters_dictionary)
 
 #%% Main Code
     
@@ -157,10 +167,14 @@ def logistic_unit_output(image, parameters_dictionary):
 train_set_x_orig, train_set_y, test_set_x_orig, test_set_y, classes = load_dataset()
 
 #%% Example of a picture
+
 index = 13
 plt.imshow(train_set_x_orig[index])
 print("y = " + str(train_set_y[:, index]) + ", it's a '" + classes[np.squeeze(train_set_y[:, index])].decode("utf-8") +  "' picture.")
 
 image = train_set_x_orig[index]
 
-train_on_single_image(image, epochs=10000, learning_rate=1e-2, seed=1, true_output=1)
+parameters_dictionary = train_on_single_image(image, epochs=10000, learning_rate=1e-2, seed=1, true_output=1)
+
+model_output = test_model(image, parameters_dictionary)
+print('Trained model output of image: ', model_output)
