@@ -128,6 +128,7 @@ def calculate_loss_multiple_images(images, parameters_dictionary, labels):
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
+
 #%% Function to linearize a 3-D image
 # input:
     # image --> image of shape (height, width, num_of_channels) 
@@ -171,7 +172,9 @@ def logistic_unit_output(image, parameters_dictionary):
     # Take sigmoid of output
     sigmoid_output = sigmoid(output)
     
-    return sigmoid_output
+    thresholded_output = 1 if output >= 0.5 else 0
+    
+    return thresholded_output
 
 #%%Function to test model on  multiple images
 # input:
