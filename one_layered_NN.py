@@ -24,21 +24,22 @@ from lr_utils import load_dataset
     # -print_after_epochs --> number of epochs after which to print the loss
 # outputs:
     # -parameters_dictionary --> final parameters dictionary after model fitting,
-    #                            {'weights': weights matrix of shape (number of image nodes or pixels, 1),
-    #                            'bias': bias, a float}    
+    #                            {'weights': weights matrix of shape (number of image nodes or pixels, number of nodes in first layer),
+    #                            'bias': bias, matrix of shape (number of nodes in first layer, 1),
+    #                            'z': useless as an output from here. It was meant for using in calculating derivatives}    
 def train_on_multiple_images(images, num_of_nodes, labels, epochs=1000, learning_rate=0.01, seed=None, print_loss_flag=False, print_after_epochs=100):
     num_of_weights = images.shape[1] * images.shape[2] * images.shape[3]
     np.random.seed(seed)
-    weights = np.random.uniform(low=-1, high=1, size=(num_of_weights, num_of_nodes)) * 1
-    bias = np.random.uniform(low=-1, high=1, size=(num_of_nodes, 1)) * 1
+    weights = np.random.uniform(low=-1, high=1, size=(num_of_weights, num_of_nodes)) * 1e-5
+    bias = np.random.uniform(low=-1, high=1, size=(num_of_nodes, 1)) * 1e-5
     parameters_dictionary = {'weights': weights, 'bias': bias}
     num_of_images = images.shape[0]
     for epoch_index in range(epochs):
         averaged_derivatives_dictionary = {'dw': np.zeros([num_of_weights, num_of_nodes]), 'db': np.zeros([num_of_nodes, 1])}
         for image_index in range(num_of_images):
             current_image = images[image_index]
-            network_output = logistic_unit_output(current_image, parameters_dictionary)    
-            derivatives_dictionary = calculate_derivatives(current_image, network_output, labels[:, image_index])
+            network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation='sigmoid', prediction_threshold_flag=False)
+            derivatives_dictionary = calculate_derivatives(network_input=current_image, network_output=network_output, true_output=labels[:, image_index], activation='sigmoid', parameters_dictionary=parameters_dictionary)
             averaged_derivatives_dictionary['dw'] += derivatives_dictionary['dw']
             averaged_derivatives_dictionary['db'] += derivatives_dictionary['db']
         
@@ -82,30 +83,76 @@ def update_parameters(parameters_dictionary, derivatives_dictionary, learning_ra
     # -true_output --> actuaL output, a float
     # -threshold_flag --> whether to apply threshold on calculated derivative values or not, a bool
     # -threshold --> threshold to be applied on calculated derivative values
+    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of nodes/pixels in image, number of nodes in the layer), 
+    #                                              'bias': bias, a matrix of shape (number of nodes in the layer, 1),
+    #                                              'z': output of individual nodes before activation. Will be used in calculating derivatives}
 # output: 
     # -derivatives dictionary having {'dw': derivative of Loss w.r.t weights, of shape (number of weights, number of nodes in the layer),
     #                                'db': derivative of Loss w.r.t biases of shape (number of nodes in the layer, 1)}
-def calculate_derivatives(network_input, network_output, true_output, threshold_flag=False, threshold=1e-1):
+def calculate_derivatives(network_input, network_output, true_output, parameters_dictionary, activation='ReLU', threshold_flag=False, threshold=1e-1):
+    
+    z = parameters_dictionary['z']
+    
     # derivative of Loss w.r.t z, a number
     dz = network_output - np.squeeze(true_output)
 
     linearized_network_input = linearize_image(network_input)
     
+    num_of_input_nodes = np.shape(linearized_network_input)[0]
+    
+    if activation == 'ReLU':
+        #derivative of threshold function w.r.t z
+        #shape will be (number of nodes in layer, 1)
+        activation_derivative = np.copy(z)
+        activation_derivative[activation_derivative < 0] = 0
+        activation_derivative[activation_derivative > 0] = 1
+    elif activation == 'sigmoid':
+         #derivative of sigmoid function w.r.t z
+        #shape will be (number of nodes in layer, 1)
+        activation_derivative = np.copy(z)
+        activation_derivative = sigmoid(activation_derivative) * (1 - sigmoid(activation_derivative))
+    
+    #for calculating derivatives for all the wieghts
+    #shape will be (number of nodes in layer, number of input nodes)
+    activation_derivative_repeated = np.repeat(activation_derivative, num_of_input_nodes, axis=1)
+    
+    #for matching the rows with rows of input
+    #shape will be (number of input nodes, number of nodes in layer)
+    activation_derivative_repeated = activation_derivative_repeated.T
+    
     #derivatives of Loss w.r.t weights
-    dw = linearized_network_input * dz
+    dw = linearized_network_input * dz * activation_derivative_repeated
     
     #derivate of Loss w.r.t bias
-    db = dz
+    db = dz * activation_derivative
     
     #thresholding
     if threshold_flag:
         dw[np.abs(dw) > threshold] = 0
-        if db > threshold:
-            db = 0
+        db[np.abs(db) > threshold] = 0
+#        db = 0 if db > threshold else db
     
     derivatives_dictionary = {'dw': dw, 'db': db}
     return derivatives_dictionary
 
+#%% calculate_derivatives test function
+def test_calculate_derivatives():
+    #2x2x1 image
+    image = np.array([[[2], [5]], [[4], [1]]])
+    # 2 nodes in the layer
+    weights = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    bias = np.array([[1], [2]])
+#    parameters_dictionary = {'weights': weights, 'bias': bias}
+#    network_output = logistic_unit_output(image=image, parameters_dictionary=parameters_dictionary, activation='sigmoid', prediction_threshold_flag=False)
+    #can also come from logistic_unit_output function
+    network_output = 0.88
+    z = np.array([[0.5], [0.6]])
+    parameters_dictionary = {'weights': weights, 'bias': bias, 'z': z}
+    true_output = 1
+    
+    derivatives_dictionary = calculate_derivatives(network_input=image, network_output=network_output, true_output=true_output, activation='sigmoid', parameters_dictionary=parameters_dictionary, threshold_flag=False, threshold=1e-1)
+    a = 1
+    
 #%% Loss function implementation
 # input:
     # network_output --> network output
@@ -115,7 +162,7 @@ def calculate_loss_multiple_images(images, parameters_dictionary, labels):
     loss = 0
     num_of_images = images.shape[0]
     for image_index in range(num_of_images):
-        network_output = logistic_unit_output(images[image_index], parameters_dictionary)
+        network_output = logistic_unit_output(images[image_index], parameters_dictionary, activation='ReLU')
         network_output = 1e-5 if network_output == 0 else network_output
         network_output = 1-1e-5 if network_output == 1 else network_output
         true_output = np.squeeze(labels[:, image_index])
@@ -132,7 +179,7 @@ def sigmoid(x):
 #%% Function to linearize a 3-D image
 # input:
     # image --> image of shape (height, width, num_of_channels) 
-# output: linear image of shape (height * width * num_of_channels)
+# output: linear image of shape (height * width * num_of_channels, 1)
 def linearize_image(image):
     # Extract dimensions of input image
     image_height = image.shape[0]
@@ -147,33 +194,56 @@ def linearize_image(image):
 #%% Function for calculating output of Logistic Regression unit
 # input:
     # -image --> image of shape (height, width, num_of_channels)
-    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of weights, 1), 
-    #                                              'bias': bias, a number}
+    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of nodes/pixels in image, number of nodes in the layer), 
+    #                                              'bias': bias, a matrix of shape (number of nodes in the layer, 1)}
     
 # output:
     # -logistic unit output, a number
-def logistic_unit_output(image, parameters_dictionary):
+def logistic_unit_output(image, parameters_dictionary, activation='ReLU', prediction_threshold_flag=False):
     weights = parameters_dictionary['weights']
     bias = parameters_dictionary['bias']
     
     linear_image = linearize_image(image)
 
     # Weights transposed for multiplication
-    # (number_of_weights, 1) --> (1, number_of_weights)
+    # (number of nodes/pixels in image, number of nodes in the layer) --> (number of nodes in the layer, number of nodes/pixels in image)
     weights_transposed = weights.T
     
     # Multiply weights with input and add bias
-    # Note that bias is a float but gets broadcasted to a higher dimensional matrix for addition
+    # Note that bias is a vector but gets broadcasted to a higher dimensional matrix for addition
     nodes_outputs = np.matmul(weights_transposed, linear_image) + bias
     
-    nodes_outputs_summed = np.sum(nodes_outputs)
+    parameters_dictionary['z'] = nodes_outputs
+    
+    #For introducing non-linearity. If hadn't done so, all the nodes sum would be same as using a single node
+    nodes_outputs_thresholded = np.copy(nodes_outputs)
+    nodes_outputs_thresholded[nodes_outputs_thresholded < 0] = 0
+
+    nodes_outputs_sigmoid = sigmoid(nodes_outputs)
+    
+    if activation == 'sigmoid':
+        prediction_before_activation = np.sum(nodes_outputs_sigmoid)
+    elif activation == 'ReLU':
+        prediction_before_activation = np.sum(nodes_outputs_thresholded)
     
     # Take sigmoid of output
-    nodes_output_sigmoid = sigmoid(nodes_outputs_summed)
+    prediction_sigmoid = sigmoid(prediction_before_activation)
     
-    nodes_output_threshold = 1 if nodes_output_sigmoid >= 0.5 else 0
+    if prediction_threshold_flag:
+        prediction_sigmoid = 1 if prediction_sigmoid >= 0.5 else 0
     
-    return nodes_output_sigmoid
+    return prediction_sigmoid
+
+#%% logistic_unit_output test function
+def test_logistic_unit_output():
+    #2x2x1 image
+    image = np.array([[[2], [5]], [[4], [1]]])
+    # 2 nodes in the layer
+    weights = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    bias = np.array([[1], [2]])
+    parameters_dictionary = {'weights': weights, 'bias': bias}
+    prediction_sigmoid = logistic_unit_output(image=image, parameters_dictionary=parameters_dictionary, activation='ReLU', prediction_threshold_flag=True)
+    a = 1
 
 #%%Function to test model on  multiple images
 # input:
@@ -190,7 +260,7 @@ def test_model_multiple_images(images, labels, parameters_dictionary):
     for image_index in range(num_of_images):
         current_image = images[image_index]
         current_image_label = labels[:, image_index]
-        network_output = logistic_unit_output(current_image, parameters_dictionary)
+        network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation='ReLU', prediction_threshold_flag=True)
         network_output = 1 if network_output >= 0.5 else 0
         if network_output == current_image_label:
             correct_predictions += 1
@@ -213,10 +283,16 @@ print("y = " + str(train_set_y[:, index]) + ", it's a '" + classes[np.squeeze(tr
 
 image = train_set_x_orig[index]
 
-parameters_dictionary = train_on_multiple_images(images=train_set_x_orig, num_of_nodes=1, labels=train_set_y, epochs=1000, learning_rate=1e-2, seed=1, print_loss_flag=True)
+parameters_dictionary = train_on_multiple_images(images=train_set_x_orig, num_of_nodes=3, labels=train_set_y, epochs=1000, learning_rate=1e-5, seed=1, print_loss_flag=True)
 
 model_accuracy = test_model_multiple_images(train_set_x_orig, train_set_y, parameters_dictionary)
 print('Trained model accuracy on training set: ', model_accuracy)
 
 model_accuracy = test_model_multiple_images(test_set_x_orig, test_set_y, parameters_dictionary)
 print('Trained model accuracy on test set: ', model_accuracy)
+
+#%% Logistic unit output test
+#test_logistic_unit_output()
+
+#%% calculate test_calculate_derivatives
+#test_calculate_derivatives()
