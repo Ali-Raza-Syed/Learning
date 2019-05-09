@@ -237,7 +237,7 @@ def logistic_unit_output(image, parameters_dictionary, activation='ReLU', predic
     prediction_sigmoid = sigmoid(prediction_before_activation)
     
     if prediction_threshold_flag:
-        prediction_sigmoid = 1 if prediction_sigmoid >= 0.5 else 0
+        prediction_sigmoid = 1 if prediction_sigmoid >= 0.75 else 0
     
     return prediction_sigmoid
 
