@@ -234,7 +234,7 @@ def logistic_unit_output(image, parameters_dictionary, activation='ReLU'):
     elif activation == 'ReLU':
         nodes_outputs_activated[nodes_outputs_activated < 0] = 0
     elif activation == 'Sigmoid':
-        prediction_before_activation = sigmoid(nodes_outputs_activated)    
+        nodes_outputs_activated = sigmoid(nodes_outputs_activated)    
         
     prediction_before_activation = np.sum(nodes_outputs_activated)
     # Take sigmoid of output
