@@ -32,15 +32,19 @@ warnings.filterwarnings("error")
 def train_on_multiple_images(images, num_of_nodes, labels, activation='ReLU', epochs=1000, learning_rate=0.01, seed=None, print_loss_flag=False, print_after_epochs=100):
     num_of_weights = images.shape[1] * images.shape[2] * images.shape[3]
     np.random.seed(seed)
-    weights = np.random.uniform(low=-1, high=1, size=(num_of_weights, num_of_nodes)) * 1e-2
+    weights = np.random.uniform(low=-1, high=1, size=(num_of_weights, num_of_nodes)) * 1e-5
     bias = np.random.uniform(low=-1, high=1, size=(num_of_nodes, 1)) * 1e-5
     parameters_dictionary = {'weights': weights, 'bias': bias}
     num_of_images = images.shape[0]
     for epoch_index in range(epochs):
         averaged_derivatives_dictionary = {'dw': np.zeros([num_of_weights, num_of_nodes]), 'db': np.zeros([num_of_nodes, 1])}
+        Zs = []
         for image_index in range(num_of_images):
             current_image = images[image_index]
-            network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation, prediction_threshold_flag=False)
+            network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
+            
+            Zs.append(parameters_dictionary['z'])
+            
             derivatives_dictionary = calculate_derivatives(network_input=current_image, network_output=network_output, true_output=labels[:, image_index], activation=activation, parameters_dictionary=parameters_dictionary, threshold_flag=False)
             averaged_derivatives_dictionary['dw'] += derivatives_dictionary['dw']
             averaged_derivatives_dictionary['db'] += derivatives_dictionary['db']
@@ -204,7 +208,7 @@ def linearize_image(image):
     
 # output:
     # -logistic unit output, a number
-def logistic_unit_output(image, parameters_dictionary, activation='ReLU', prediction_threshold_flag=False):
+def logistic_unit_output(image, parameters_dictionary, activation='ReLU'):
     weights = parameters_dictionary['weights']
     bias = parameters_dictionary['bias']
     
@@ -236,9 +240,6 @@ def logistic_unit_output(image, parameters_dictionary, activation='ReLU', predic
     # Take sigmoid of output
     prediction_sigmoid = sigmoid(prediction_before_activation)
     
-    if prediction_threshold_flag:
-        prediction_sigmoid = 1 if prediction_sigmoid >= 0.75 else 0
-    
     return prediction_sigmoid
 
 #%% logistic_unit_output test function
@@ -261,7 +262,7 @@ def test_logistic_unit_output():
     
 # output:
     # -logistic unit output, a number
-def test_model_multiple_images(images, labels, parameters_dictionary, activation='ReLU'):
+def test_model_multiple_images(images, labels, parameters_dictionary, activation='ReLU', prediction_threshold=0.5):
     num_of_images = images.shape[0]
     correct_predictions = 0
     #for checking all outputs
@@ -269,8 +270,9 @@ def test_model_multiple_images(images, labels, parameters_dictionary, activation
     for image_index in range(num_of_images):
         current_image = images[image_index]
         current_image_label = labels[:, image_index]
-        network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation, prediction_threshold_flag=True)
+        network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
         network_outputs.append(network_output)
+        network_output= 1 if network_output >= prediction_threshold else 0
         if network_output == current_image_label:
             correct_predictions += 1
             
@@ -298,16 +300,16 @@ train_set_x_orig, train_set_y, test_set_x_orig, test_set_y, classes = load_datas
 
 #train_set_x_orig = (train_set_x_orig - train_set_x_orig_min)/(train_set_x_orig_max-train_set_x_orig_min)
 
-activation = 'ReLU'
+activation = 'Sigmoid'
+prediction_threshold = 0.5
+parameters_dictionary = train_on_multiple_images(images=train_set_x_orig, num_of_nodes=1, labels=train_set_y, activation=activation, epochs=1000, learning_rate=1e-5, seed=1, print_loss_flag=True, print_after_epochs=1)
 
-parameters_dictionary = train_on_multiple_images(images=train_set_x_orig, num_of_nodes=3, labels=train_set_y, activation=activation, epochs=1000, learning_rate=1e-1, seed=1, print_loss_flag=True, print_after_epochs=100)
-
-model_accuracy, network_outputs = test_model_multiple_images(train_set_x_orig, train_set_y, parameters_dictionary, activation=activation)
+model_accuracy, network_outputs = test_model_multiple_images(train_set_x_orig, train_set_y, parameters_dictionary, activation=activation, prediction_threshold=prediction_threshold)
 model_loss = calculate_loss_multiple_images(images=train_set_x_orig, parameters_dictionary=parameters_dictionary, labels=train_set_y)
 print('Trained model accuracy on training set: ', model_accuracy)
 print('Trained model loss on training set: ', model_loss)
 
-model_accuracy, _ = test_model_multiple_images(test_set_x_orig, test_set_y, parameters_dictionary, activation=activation)
+model_accuracy, _ = test_model_multiple_images(test_set_x_orig, test_set_y, parameters_dictionary, activation=activation, prediction_threshold=prediction_threshold)
 model_loss = calculate_loss_multiple_images(images=test_set_x_orig, parameters_dictionary=parameters_dictionary, labels=test_set_y)
 print('Trained model accuracy on test set: ', model_accuracy)
 print('Trained model loss on test set: ', model_loss)
