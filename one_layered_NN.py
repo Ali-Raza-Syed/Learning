@@ -32,37 +32,51 @@ warnings.filterwarnings("error")
 def train_on_multiple_images(images, num_of_nodes, labels, activation='ReLU', epochs=1000, learning_rate=0.01, seed=None, print_loss_flag=False, print_after_epochs=100):
     num_of_weights = images.shape[1] * images.shape[2] * images.shape[3]
     np.random.seed(seed)
-    weights = np.random.uniform(low=-1, high=1, size=(num_of_weights, num_of_nodes)) * 1e-5
-    bias = np.random.uniform(low=-1, high=1, size=(num_of_nodes, 1)) * 1e-5
-    parameters_dictionary = {'weights': weights, 'bias': bias}
+    W1 = np.random.uniform(low=-1, high=1, size=(num_of_weights, num_of_nodes)) * 1e-5  
+    B1 = np.random.uniform(low=-1, high=1, size=(num_of_nodes, 1)) * 1e-5
+    W2 = np.random.uniform(low=-1, high=1, size=(num_of_nodes, 1)) * 1e-5  
+    B2 = np.random.uniform(low=-1, high=1, size=(1, 1)) * 1e-5
+    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2}
+#    parameters_dictionary = {'weights': weights, 'bias': bias}
     num_of_images = images.shape[0]
     for epoch_index in range(epochs):
-        averaged_derivatives_dictionary = {'dw': np.zeros([num_of_weights, num_of_nodes]), 'db': np.zeros([num_of_nodes, 1])}
-        debug_array = []
+        averaged_derivatives_dictionary = {'dW1': np.zeros([num_of_weights, num_of_nodes]), 'dB1': np.zeros([num_of_nodes, 1]),\
+                                           'dW2': np.zeros([num_of_nodes, 1]),'dB2': np.zeros([1, 1])}
+#        averaged_derivatives_dictionary = {'dw': np.zeros([num_of_weights, num_of_nodes]), 'db': np.zeros([num_of_nodes, 1])}
+#        debug_array = []
         for image_index in range(num_of_images):
             current_image = images[image_index]
-            network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
             
-            debug_array.append([np.squeeze(a=parameters_dictionary['z'], axis=1)[0], network_output])
+            if epoch_index == 127 and image_index == 0:
+                a = 1
             
-            derivatives_dictionary = calculate_derivatives(network_input=current_image, network_output=network_output, true_output=labels[:, image_index], activation=activation, parameters_dictionary=parameters_dictionary, threshold_flag=False)
-            averaged_derivatives_dictionary['dw'] += derivatives_dictionary['dw']
-            averaged_derivatives_dictionary['db'] += derivatives_dictionary['db']
-        averaged_derivatives_dictionary['dw'] /= num_of_images
-        averaged_derivatives_dictionary['db'] /= num_of_images
+            try:
+                network_output, cache = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
+            except RuntimeWarning:
+                a = 1
+#            debug_array.append([np.squeeze(a=parameters_dictionary['z'], axis=1)[0], network_output])
+                
+            derivatives_dictionary = calculate_derivatives(network_input=current_image, network_output=network_output, true_output=labels[:, image_index], activation=activation, parameters_dictionary=parameters_dictionary, cache=cache, threshold_flag=False)
+            averaged_derivatives_dictionary['dW1'] += derivatives_dictionary['dW1']
+            averaged_derivatives_dictionary['dB1'] += derivatives_dictionary['dB1']
+            averaged_derivatives_dictionary['dW2'] += derivatives_dictionary['dW2']
+            averaged_derivatives_dictionary['dB2'] += derivatives_dictionary['dB2']
+        averaged_derivatives_dictionary['dW1'] /= num_of_images
+        averaged_derivatives_dictionary['dB1'] /= num_of_images
+        averaged_derivatives_dictionary['dW2'] /= num_of_images
+        averaged_derivatives_dictionary['dB2'] /= num_of_images
         
-        if np.shape(averaged_derivatives_dictionary['dw'][averaged_derivatives_dictionary['dw'] != 0])[0] == 0:
-            print('Weight updates reached zero on epoch_index ', epoch_index)
-            return parameters_dictionary
+#        if np.shape(averaged_derivatives_dictionary['dw'][averaged_derivatives_dictionary['dw'] != 0])[0] == 0:
+#            print('Weight updates reached zero on epoch_index ', epoch_index)
+#            return parameters_dictionary
         
         
-        derivatives_dictionary_averaged = averaged_derivatives_dictionary['dw']
+#        derivatives_dictionary_averaged = averaged_derivatives_dictionary['dw']
         
         
         parameters_dictionary = update_parameters(parameters_dictionary, averaged_derivatives_dictionary, learning_rate)
         if np.mod(epoch_index, print_after_epochs) == 0 and print_loss_flag:
             print('epoch = ', epoch_index, '\nLoss = ', calculate_loss_multiple_images(images, parameters_dictionary, labels))
-            np.shape(weights[weights < 0])
     return parameters_dictionary
 
 #%%Function to update parameters (weights and bias)
@@ -76,17 +90,25 @@ def train_on_multiple_images(images, num_of_nodes, labels, activation='ReLU', ep
     # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of weights, number of nodes in the layer), 
     #                                              'bias': biases of shape (number of nodes in the layer, 1)}
 def update_parameters(parameters_dictionary, derivatives_dictionary, learning_rate):
-    weights = parameters_dictionary['weights']
-    bias = parameters_dictionary['bias']
-    dw = derivatives_dictionary['dw']
-    db = derivatives_dictionary['db']
+    W1 = parameters_dictionary['W1']
+    B1 = parameters_dictionary['B1']
+    W2 = parameters_dictionary['W2']
+    B2 = parameters_dictionary['B2']
+    dW1 = derivatives_dictionary['dW1']
+    dB1 = derivatives_dictionary['dB1']
+    dW2 = derivatives_dictionary['dW2']
+    dB2 = derivatives_dictionary['dB2']
     
     #updating parameters
-    weights = weights - learning_rate * dw
-    bias = bias - learning_rate * db
+    W1 = W1 - learning_rate * dW1
+    B1 = B1 - learning_rate * dB1
+    W2 = W2 - learning_rate * dW2
+    B2 = B2 - learning_rate * dB2
     
-    parameters_dictionary['weights'] = weights
-    parameters_dictionary['bias'] = bias
+    parameters_dictionary['W1'] = W1
+    parameters_dictionary['B1'] = B1
+    parameters_dictionary['W2'] = W2
+    parameters_dictionary['B2'] = B2
     
     return parameters_dictionary
 
@@ -103,12 +125,25 @@ def update_parameters(parameters_dictionary, derivatives_dictionary, learning_ra
 # output: 
     # -derivatives dictionary having {'dw': derivative of Loss w.r.t weights, of shape (number of weights, number of nodes in the layer),
     #                                'db': derivative of Loss w.r.t biases of shape (number of nodes in the layer, 1)}
-def calculate_derivatives(network_input, network_output, true_output, parameters_dictionary, activation='ReLU', threshold_flag=False, threshold=1e-1):
+def calculate_derivatives(network_input, network_output, true_output, parameters_dictionary, cache, activation='ReLU', threshold_flag=False, threshold=1e-1):
     
-    z = parameters_dictionary['z']
+    Z1 = cache['Z1']
+    A1 = cache['A1']
+    Z2 = cache['Z2']
+    A2 = cache['A2']
+    
+    W1 = parameters_dictionary['W1']
+    B1 = parameters_dictionary['B1']
+    W2 = parameters_dictionary['W2']
+    B2 = parameters_dictionary['B2']
     
     # derivative of Loss w.r.t z, a number
-    dz = network_output - np.squeeze(true_output)
+    dZ2 = network_output - np.squeeze(true_output)
+
+    dW2 = dZ2 * A1
+    dB2 = dZ2
+    
+    dA1 = dZ2 * W2
 
     linearized_network_input = linearize_image(network_input)
     
@@ -116,40 +151,35 @@ def calculate_derivatives(network_input, network_output, true_output, parameters
     
     #derivative of activation function w.r.t z
     #shape will be (number of nodes in layer, 1)
-    activation_derivative = np.copy(z)
+#    activation_derivative = np.copy(z)
+    d_A1_d_Z1 = np.copy(Z1)
     if activation == 'LeakyReLU':
-        activation_derivative[activation_derivative >= 0] = 1
-        activation_derivative[activation_derivative < 0] = 0.1
+        d_A1_d_Z1[d_A1_d_Z1 >= 0] = 1
+        d_A1_d_Z1[d_A1_d_Z1 < 0] = 0.1
     elif activation == 'LeakyReLUReversed':
-        activation_derivative[activation_derivative >= 0] = 0.1
-        activation_derivative[activation_derivative < 0] = 1
+        d_A1_d_Z1[d_A1_d_Z1 >= 0] = 0.1
+        d_A1_d_Z1[d_A1_d_Z1 < 0] = 1
     elif activation == 'Sigmoid':
-        activation_derivative = sigmoid(activation_derivative) * (1 - sigmoid(activation_derivative))
+        d_A1_d_Z1 = sigmoid(d_A1_d_Z1) * (1 - sigmoid(d_A1_d_Z1))
     elif activation == 'ReLU':
-        activation_derivative[activation_derivative >= 0] = 1
-        activation_derivative[activation_derivative < 0] = 0
+        d_A1_d_Z1[d_A1_d_Z1 >= 0] = 1
+        d_A1_d_Z1[d_A1_d_Z1 < 0] = 0
     
-    #for calculating derivatives for all the wieghts
-    #shape will be (number of nodes in layer, number of input nodes)
-    activation_derivative_repeated = np.repeat(activation_derivative, num_of_input_nodes, axis=1)
+    dZ1 = dA1 * d_A1_d_Z1
     
-    #for matching the rows with rows of input
-    #shape will be (number of input nodes, number of nodes in layer)
-    activation_derivative_repeated = activation_derivative_repeated.T
+    dZ1_repeated = np.repeat(dZ1.T, num_of_input_nodes, axis=0)
     
-    #derivatives of Loss w.r.t weights
-    dw = linearized_network_input * dz * activation_derivative_repeated
+    dW1 = dZ1_repeated * linearized_network_input
+    dB1 = dZ1
     
-    #derivate of Loss w.r.t bias
-    db = dz * activation_derivative
-    
-    #thresholding
     if threshold_flag:
-        dw = np.clip(dw, -threshold, threshold)
-        db = np.clip(db, -threshold, threshold)
-
+        dZ1 = np.clip(dZ1, -threshold, threshold)
+        dB1 = np.clip(dB1, -threshold, threshold)
+        dZ2 = np.clip(dZ2, -threshold, threshold)
+        dB2 = np.clip(dB2, -threshold, threshold)
     
-    derivatives_dictionary = {'dw': dw, 'db': db}
+    derivatives_dictionary = {'dW1': dW1, 'dB1': dB1, 'dW2': dW2, 'dB2': dB2}
+    
     return derivatives_dictionary
 
 #%% calculate_derivatives test function
@@ -179,7 +209,7 @@ def calculate_loss_multiple_images(images, parameters_dictionary, labels):
     loss = 0
     num_of_images = images.shape[0]
     for image_index in range(num_of_images):
-        network_output = logistic_unit_output(images[image_index], parameters_dictionary, activation='ReLU')
+        network_output, _ = logistic_unit_output(images[image_index], parameters_dictionary, activation='ReLU')
         network_output = 1e-5 if network_output == 0 else network_output
         network_output = 1-1e-5 if network_output == 1 else network_output
         true_output = np.squeeze(labels[:, image_index])
@@ -217,38 +247,44 @@ def linearize_image(image):
 # output:
     # -logistic unit output, a number
 def logistic_unit_output(image, parameters_dictionary, activation='ReLU'):
-    weights = parameters_dictionary['weights']
-    bias = parameters_dictionary['bias']
+    W1 = parameters_dictionary['W1']
+    B1 = parameters_dictionary['B1']
+    W2 = parameters_dictionary['W2']
+    B2 = parameters_dictionary['B2']
     
     linear_image = linearize_image(image)
 
     # Weights transposed for multiplication
     # (number of nodes/pixels in image, number of nodes in the layer) --> (number of nodes in the layer, number of nodes/pixels in image)
-    weights_transposed = weights.T
+#    weights_transposed = weights.T
     
     # Multiply weights with input and add bias
     # Note that bias is a vector but gets broadcasted to a higher dimensional matrix for addition
-    nodes_outputs = np.matmul(weights_transposed, linear_image) + bias
+    Z1 = np.matmul(W1.T, linear_image) + B1
     
-    parameters_dictionary['z'] = nodes_outputs
+#    parameters_dictionary['z'] = nodes_outputs
     
     #For introducing non-linearity. If hadn't done so, all the nodes sum would be same as using a single node
-    nodes_outputs_activated = np.copy(nodes_outputs)
-    prediction_before_activation = 0
+    A1 = np.copy(Z1)
+#    prediction_before_activation = 0
     if activation == 'LeakyReLU':
-        nodes_outputs_activated[np.where(nodes_outputs_activated < 0)] = nodes_outputs_activated[np.where(nodes_outputs_activated < 0)] * 0.1
+        A1[np.where(A1 < 0)] = A1[np.where(A1 < 0)] * 0.1
     elif activation == 'LeakyReLUReversed':
-        nodes_outputs_activated[np.where(nodes_outputs_activated > 0)] = nodes_outputs_activated[np.where(nodes_outputs_activated > 0)] * 0.1
+        A1[np.where(A1 > 0)] = A1[np.where(A1 > 0)] * 0.1
     elif activation == 'ReLU':
-        nodes_outputs_activated[nodes_outputs_activated < 0] = 0
+        A1[A1 < 0] = 0
     elif activation == 'Sigmoid':
-        nodes_outputs_activated = sigmoid(nodes_outputs_activated)    
+        A1 = sigmoid(A1)    
         
-    prediction_before_activation = np.sum(nodes_outputs_activated)
+    Z2 = np.matmul(W2.T, A1) + B2
+        
+#    prediction_before_activation = np.sum(A1)
     # Take sigmoid of output
-    prediction_sigmoid = sigmoid(prediction_before_activation)
+    A2 = sigmoid(Z2)
     
-    return prediction_sigmoid
+    cache = {'Z1': Z1, 'A1': A1, 'Z2': Z2, 'A2': A2}
+    
+    return np.squeeze(A2), cache
 
 #%% logistic_unit_output test function
 def test_logistic_unit_output():
@@ -278,7 +314,7 @@ def test_model_multiple_images(images, labels, parameters_dictionary, activation
     for image_index in range(num_of_images):
         current_image = images[image_index]
         current_image_label = labels[:, image_index]
-        network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
+        network_output, _ = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
         network_outputs.append(network_output)
         network_output = 1 if network_output >= prediction_threshold else 0
         if network_output == current_image_label:
@@ -308,12 +344,12 @@ train_set_x_orig, train_set_y, test_set_x_orig, test_set_y, classes = load_datas
 
 #train_set_x_orig = (train_set_x_orig - train_set_x_orig_min)/(train_set_x_orig_max-train_set_x_orig_min)
 
-activation = 'LeakyReLUReversed'
-prediction_threshold = 0.75
-learning_rate = 1e-2
-epochs = 1000
+activation = 'LeakyReLU'
+prediction_threshold = 0.7
+learning_rate = 0.5e-3
+epochs = 2000
 seed = 1
-num_of_nodes = 2
+num_of_nodes = 1
 parameters_dictionary = train_on_multiple_images(images=train_set_x_orig, num_of_nodes=num_of_nodes, labels=train_set_y, activation=activation, epochs=epochs, learning_rate=learning_rate, seed=seed, print_loss_flag=True, print_after_epochs=50)
 
 model_accuracy, network_outputs = test_model_multiple_images(train_set_x_orig, train_set_y, parameters_dictionary, activation=activation, prediction_threshold=prediction_threshold)
