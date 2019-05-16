@@ -38,18 +38,23 @@ def train_on_multiple_images(images, num_of_nodes, labels, activation='ReLU', ep
     num_of_images = images.shape[0]
     for epoch_index in range(epochs):
         averaged_derivatives_dictionary = {'dw': np.zeros([num_of_weights, num_of_nodes]), 'db': np.zeros([num_of_nodes, 1])}
-        Zs = []
+        debug_array = []
         for image_index in range(num_of_images):
             current_image = images[image_index]
             network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
             
-            Zs.append(parameters_dictionary['z'])
+            debug_array.append([np.squeeze(a=parameters_dictionary['z'], axis=1)[0], network_output])
             
             derivatives_dictionary = calculate_derivatives(network_input=current_image, network_output=network_output, true_output=labels[:, image_index], activation=activation, parameters_dictionary=parameters_dictionary, threshold_flag=False)
             averaged_derivatives_dictionary['dw'] += derivatives_dictionary['dw']
             averaged_derivatives_dictionary['db'] += derivatives_dictionary['db']
         averaged_derivatives_dictionary['dw'] /= num_of_images
         averaged_derivatives_dictionary['db'] /= num_of_images
+        
+        if np.shape(averaged_derivatives_dictionary['dw'][averaged_derivatives_dictionary['dw'] != 0])[0] == 0:
+            print('Weight updates reached zero on epoch_index ', epoch_index)
+            return parameters_dictionary
+        
         
         derivatives_dictionary_averaged = averaged_derivatives_dictionary['dw']
         
@@ -115,6 +120,9 @@ def calculate_derivatives(network_input, network_output, true_output, parameters
     if activation == 'LeakyReLU':
         activation_derivative[activation_derivative >= 0] = 1
         activation_derivative[activation_derivative < 0] = 0.1
+    elif activation == 'LeakyReLUReversed':
+        activation_derivative[activation_derivative >= 0] = 0.1
+        activation_derivative[activation_derivative < 0] = 1
     elif activation == 'Sigmoid':
         activation_derivative = sigmoid(activation_derivative) * (1 - sigmoid(activation_derivative))
     elif activation == 'ReLU':
@@ -193,7 +201,7 @@ def linearize_image(image):
     # Extract dimensions of input image
     image_height = image.shape[0]
     image_width = image.shape[1]
-    image_channels= image.shape[2]
+    image_channels = image.shape[2]
     
     # Linearize image
     linear_image = image.reshape([image_height * image_width * image_channels])
@@ -228,9 +236,9 @@ def logistic_unit_output(image, parameters_dictionary, activation='ReLU'):
     nodes_outputs_activated = np.copy(nodes_outputs)
     prediction_before_activation = 0
     if activation == 'LeakyReLU':
-        for i in range(np.shape(nodes_outputs_activated)[0]):
-            if nodes_outputs_activated[i, 0] < 0:
-                nodes_outputs_activated[i, 0] = nodes_outputs_activated[i, 0] * 0.1
+        nodes_outputs_activated[np.where(nodes_outputs_activated < 0)] = nodes_outputs_activated[np.where(nodes_outputs_activated < 0)] * 0.1
+    elif activation == 'LeakyReLUReversed':
+        nodes_outputs_activated[np.where(nodes_outputs_activated > 0)] = nodes_outputs_activated[np.where(nodes_outputs_activated > 0)] * 0.1
     elif activation == 'ReLU':
         nodes_outputs_activated[nodes_outputs_activated < 0] = 0
     elif activation == 'Sigmoid':
@@ -272,7 +280,7 @@ def test_model_multiple_images(images, labels, parameters_dictionary, activation
         current_image_label = labels[:, image_index]
         network_output = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
         network_outputs.append(network_output)
-        network_output= 1 if network_output >= prediction_threshold else 0
+        network_output = 1 if network_output >= prediction_threshold else 0
         if network_output == current_image_label:
             correct_predictions += 1
             
@@ -300,9 +308,13 @@ train_set_x_orig, train_set_y, test_set_x_orig, test_set_y, classes = load_datas
 
 #train_set_x_orig = (train_set_x_orig - train_set_x_orig_min)/(train_set_x_orig_max-train_set_x_orig_min)
 
-activation = 'Sigmoid'
-prediction_threshold = 0.5
-parameters_dictionary = train_on_multiple_images(images=train_set_x_orig, num_of_nodes=1, labels=train_set_y, activation=activation, epochs=1000, learning_rate=1e-5, seed=1, print_loss_flag=True, print_after_epochs=1)
+activation = 'LeakyReLUReversed'
+prediction_threshold = 0.75
+learning_rate = 1e-2
+epochs = 1000
+seed = 1
+num_of_nodes = 2
+parameters_dictionary = train_on_multiple_images(images=train_set_x_orig, num_of_nodes=num_of_nodes, labels=train_set_y, activation=activation, epochs=epochs, learning_rate=learning_rate, seed=seed, print_loss_flag=True, print_after_epochs=50)
 
 model_accuracy, network_outputs = test_model_multiple_images(train_set_x_orig, train_set_y, parameters_dictionary, activation=activation, prediction_threshold=prediction_threshold)
 model_loss = calculate_loss_multiple_images(images=train_set_x_orig, parameters_dictionary=parameters_dictionary, labels=train_set_y)
