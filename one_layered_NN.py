@@ -5,11 +5,6 @@ Created on Tue Apr 30 23:59:30 2019
 @author: Syed_Ali_Raza
 """
 import numpy as np
-import matplotlib.pyplot as plt
-import h5py
-import scipy
-from PIL import Image
-from scipy import ndimage
 from lr_utils import load_dataset
 import warnings
 warnings.filterwarnings("error")
@@ -46,15 +41,10 @@ def train_on_multiple_images(images, num_of_nodes, labels, activation='ReLU', ep
 #        debug_array = []
         for image_index in range(num_of_images):
             current_image = images[image_index]
-            
-            if epoch_index == 127 and image_index == 0:
-                a = 1
-            
             try:
-                network_output, cache = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
+                network_output, cache = calculate_network_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
             except RuntimeWarning:
-                a = 1
-#            debug_array.append([np.squeeze(a=parameters_dictionary['z'], axis=1)[0], network_output])
+                print('network output overflowed for epoch_index ' + epoch_index + ' and image_index ' + image_index)
                 
             derivatives_dictionary = calculate_derivatives(network_input=current_image, network_output=network_output, true_output=labels[:, image_index], activation=activation, parameters_dictionary=parameters_dictionary, cache=cache, threshold_flag=False)
             averaged_derivatives_dictionary['dW1'] += derivatives_dictionary['dW1']
@@ -81,14 +71,18 @@ def train_on_multiple_images(images, num_of_nodes, labels, activation='ReLU', ep
 
 #%%Function to update parameters (weights and bias)
 # input:
-    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of weights, number of nodes in the layer), 
-    #                                              'bias': biases of shape (number of nodes in the layer, 1)}
+    # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
+    #                                               'B1': first layer biases of shape (num of inputs, 1),
+    #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
+    #                                               'B2': second/output layer bias of shape (1, 1)}
     # -derivatives_dictionary --> dictionary having {'dw': derivative of Loss w.r.t weights, of shape (number of weights, number of nodes in the layer),
     #                                               'db': derivative of Loss w.r.t biases of shape (number of nodes in the layer, 1)}
     # -learning_rate --> learning rate for updation of parameters
 # output:
-    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of weights, number of nodes in the layer), 
-    #                                              'bias': biases of shape (number of nodes in the layer, 1)}
+    # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
+    #                                               'B1': first layer biases of shape (num of inputs, 1),
+    #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
+    #                                               'B2': second/output layer bias of shape (1, 1)}
 def update_parameters(parameters_dictionary, derivatives_dictionary, learning_rate):
     W1 = parameters_dictionary['W1']
     B1 = parameters_dictionary['B1']
@@ -117,14 +111,23 @@ def update_parameters(parameters_dictionary, derivatives_dictionary, learning_ra
     # -network_input --> network input of shape (height, width, num_of_channels)
     # -network_output --> output of network, a float
     # -true_output --> actuaL output, a float
+    # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
+    #                                               'B1': first layer biases of shape (num of inputs, 1),
+    #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
+    #                                               'B2': second/output layer bias of shape (1, 1)}
+    # -cache --> dictionary containing information from forward pass which would be required in calculating derivatives.
+    #            {'Z1': non-activated nodes outputs of first layer of shape (num of nodes in first layer, 1),
+    #             'A1': activated nodes outputs of first layer of shape (num of nodes in first layer, 1),
+    #             'Z2': non-activated nodes outputs of second/output layer of shape(1, 1),
+    #             'A2': activated nodes outputs of second/output layer of shape(1, 1), which is also the network output}
+    # -activation --> activation function being used in first layer
     # -threshold_flag --> whether to apply threshold on calculated derivative values or not, a bool
     # -threshold --> threshold to be applied on calculated derivative values
-    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of nodes/pixels in image, number of nodes in the layer), 
-    #                                              'bias': bias, a matrix of shape (number of nodes in the layer, 1),
-    #                                              'z': output of individual nodes before activation. Will be used in calculating derivatives}
 # output: 
-    # -derivatives dictionary having {'dw': derivative of Loss w.r.t weights, of shape (number of weights, number of nodes in the layer),
-    #                                'db': derivative of Loss w.r.t biases of shape (number of nodes in the layer, 1)}
+    # -derivatives dictionary having {'dW1': derivative of W1 w.r.t loss, of shape (num of inputs, num of nodes in first layer), 
+    #                                 'dB1': derivative of B1 w.r.t loss of shape (num of inputs, 1),
+    #                                 'dW2': derivative of W2 w.r.t loss of shape(num of nodes in first layer, 1),
+    #                                 'dB2': derivative of B2 w.r.t loss of shape (1, 1)}
 def calculate_derivatives(network_input, network_output, true_output, parameters_dictionary, cache, activation='ReLU', threshold_flag=False, threshold=1e-1):
     
     Z1 = cache['Z1']
@@ -209,7 +212,7 @@ def calculate_loss_multiple_images(images, parameters_dictionary, labels):
     loss = 0
     num_of_images = images.shape[0]
     for image_index in range(num_of_images):
-        network_output, _ = logistic_unit_output(images[image_index], parameters_dictionary, activation='ReLU')
+        network_output, _ = calculate_network_output(images[image_index], parameters_dictionary, activation='ReLU')
         network_output = 1e-5 if network_output == 0 else network_output
         network_output = 1-1e-5 if network_output == 1 else network_output
         true_output = np.squeeze(labels[:, image_index])
@@ -241,12 +244,20 @@ def linearize_image(image):
 #%% Function for calculating output of Logistic Regression unit
 # input:
     # -image --> image of shape (height, width, num_of_channels)
-    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of nodes/pixels in image, number of nodes in the layer), 
-    #                                              'bias': bias, a matrix of shape (number of nodes in the layer, 1)}
+    # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
+    #                                               'B1': first layer biases of shape (num of inputs, 1),
+    #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
+    #                                               'B2': second/output layer bias of shape (1, 1)}
     
 # output:
-    # -logistic unit output, a number
-def logistic_unit_output(image, parameters_dictionary, activation='ReLU'):
+    # -network output, a float
+    # -cache, dictionary containing information from forward pass which would be required in calculating derivatives.
+    #       {'Z1': non-activated nodes outputs of first layer of shape (num of nodes in first layer, 1),
+    #        'A1': activated nodes outputs of first layer of shape (num of nodes in first layer, 1),
+    #        'Z2': non-activated nodes outputs of second/output layer of shape(1, 1),
+    #        'A2': activated nodes outputs of second/output layer of shape(1, 1), which is also the network output}
+            
+def calculate_network_output(image, parameters_dictionary, activation='ReLU'):
     W1 = parameters_dictionary['W1']
     B1 = parameters_dictionary['B1']
     W2 = parameters_dictionary['W2']
@@ -301,9 +312,12 @@ def test_logistic_unit_output():
 # input:
     # -images --> images of shape (image number, height, width, num_of_channels)
     # -labels --> image labels of shape (1, number of images)
-    # -parameters_dictionary --> dictionary having {'weights': weights of shape (number of weights, 1), 
-    #                                              'bias': bias, a number}
-    
+    # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
+    #                                               'B1': first layer biases of shape (num of inputs, 1),
+    #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
+    #                                               'B2': second/output layer bias of shape (1, 1)}
+    # -activation --> activation function being used in first layer
+    # -prediction_threshold --> threshold to apply on final network output for decision making
 # output:
     # -logistic unit output, a number
 def test_model_multiple_images(images, labels, parameters_dictionary, activation='ReLU', prediction_threshold=0.5):
@@ -314,7 +328,7 @@ def test_model_multiple_images(images, labels, parameters_dictionary, activation
     for image_index in range(num_of_images):
         current_image = images[image_index]
         current_image_label = labels[:, image_index]
-        network_output, _ = logistic_unit_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
+        network_output, _ = calculate_network_output(image=current_image, parameters_dictionary=parameters_dictionary, activation=activation)
         network_outputs.append(network_output)
         network_output = 1 if network_output >= prediction_threshold else 0
         if network_output == current_image_label:
@@ -325,31 +339,16 @@ def test_model_multiple_images(images, labels, parameters_dictionary, activation
 
 
 #%% Main Code
-    
-#%% Loading the data (cat/non-cat)
+
+#Loading the data (cat/non-cat)
 train_set_x_orig, train_set_y, test_set_x_orig, test_set_y, classes = load_dataset()
-
-##%% Example of a picture
-#
-#index = 13
-#print('shape of train_set_x_orig: ', np.shape(train_set_x_orig))
-#plt.imshow(train_set_x_orig[index])
-#print("y = " + str(train_set_y[:, index]) + ", it's a '" + classes[np.squeeze(train_set_y[:, index])].decode("utf-8") +  "' picture.")
-#
-#image = train_set_x_orig[index]
-
-
-#train_set_x_orig_min = train_set_x_orig.min(axis=(1, 2), keepdims=True)
-#train_set_x_orig_max = train_set_x_orig.max(axis=(1, 2), keepdims=True)
-
-#train_set_x_orig = (train_set_x_orig - train_set_x_orig_min)/(train_set_x_orig_max-train_set_x_orig_min)
 
 activation = 'LeakyReLU'
 prediction_threshold = 0.7
 learning_rate = 0.5e-3
-epochs = 2000
+epochs = 1500
 seed = 1
-num_of_nodes = 1
+num_of_nodes = 3
 parameters_dictionary = train_on_multiple_images(images=train_set_x_orig, num_of_nodes=num_of_nodes, labels=train_set_y, activation=activation, epochs=epochs, learning_rate=learning_rate, seed=seed, print_loss_flag=True, print_after_epochs=50)
 
 model_accuracy, network_outputs = test_model_multiple_images(train_set_x_orig, train_set_y, parameters_dictionary, activation=activation, prediction_threshold=prediction_threshold)
