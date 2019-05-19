@@ -28,8 +28,10 @@ def train_on_multiple_images(linearized_images, layers, labels, activation='ReLU
     np.random.seed(seed)
     parameters_dictionary = {}
     #skip first element in layers
-    for layer_index, current_layer_num_of_nodes in enumerate(layers[1:]):
-        previous_layer_num_of_nodes = layers[layer_index - 1]
+#    for layer_index, current_layer_num_of_nodes in enumerate(layers[1:]):
+    for layer_index in range(len(layers) - 1):
+        current_layer_num_of_nodes = layers[layer_index + 1]
+        previous_layer_num_of_nodes = layers[layer_index]
         parameters_dictionary['W' + str(layer_index + 1)] = np.random.uniform(low=-1, high=1, size=(previous_layer_num_of_nodes, current_layer_num_of_nodes)) * 1e-5
         parameters_dictionary['B' + str(layer_index + 1)] = np.random.uniform(low=-1, high=1, size=(current_layer_num_of_nodes, 1)) * 1e-5
     
@@ -107,7 +109,7 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
     for layer_index in range(1, output_layer_num, 1)[::-1]:
         current_layer_num = layer_index + 1
         previous_layer_num = layer_index
-        W = parameters_dictionary['W' + current_layer_num]
+        W = parameters_dictionary['W' + str(current_layer_num)]
         A = cache['A' + str(previous_layer_num)]
         Z = cache['Z' + str(previous_layer_num)]
         
@@ -132,8 +134,8 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
             dW = np.clip(dW, -threshold, threshold)
             dB = np.clip(dB, -threshold, threshold)
         
-        derivatives_dictionary['dW' + str(previous_layer_num)] = dW
-        derivatives_dictionary['dB' + str(previous_layer_num)] = dB
+        derivatives_dictionary['dW' + str(current_layer_num)] = dW
+        derivatives_dictionary['dB' + str(current_layer_num)] = dB
         
         dZ = dA * dA_dZ
     
@@ -254,8 +256,8 @@ def calculate_network_output(linearized_images, parameters_dictionary, layers, a
     A = np.copy(Z)
     A = sigmoid(A)
     
-    cache['Z' + str(output_layer_number)]
-    cache['A' + str(output_layer_number)]
+    cache['Z' + str(output_layer_number)] = Z
+    cache['A' + str(output_layer_number)] = A
     
     return cache
 
