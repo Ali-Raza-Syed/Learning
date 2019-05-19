@@ -289,9 +289,9 @@ def test_logistic_unit_output():
 def test_model_multiple_images(linearized_images, labels, parameters_dictionary, layers, activation='ReLU', prediction_threshold=0.5):
     num_of_images = linearized_images.shape[1]
     correct_predictions = 0
-    
+    output_layer_num = len(layers) - 1
     cache = calculate_network_output(linearized_images=linearized_images, parameters_dictionary=parameters_dictionary, layers=layers, activation=activation)
-    network_outputs = cache['A2']
+    network_outputs = cache['A' + str(output_layer_num)]
     network_outputs[network_outputs >= prediction_threshold] = 1
     network_outputs[network_outputs < prediction_threshold] = 0
     correct_predictions = np.sum(network_outputs == labels)
@@ -305,27 +305,27 @@ def test_model_multiple_images(linearized_images, labels, parameters_dictionary,
 #Loading the data (cat/non-cat)
 train_set_x_orig, train_set_y, test_set_x_orig, test_set_y, classes = load_dataset()
 
-activation = 'LeakyReLU'
+activation = 'ReLU'
 prediction_threshold = 0.7
-learning_rate = 0.5e-3
-epochs = 1000
+learning_rate = 1e-2
+epochs = 300
 seed = 1
 
 linearized_train_set_x_orig = linearize_images(train_set_x_orig)
 linearized_test_set_x_orig = linearize_images(test_set_x_orig)
 
 num_input_layers = np.shape(linearized_train_set_x_orig)[0]
-layers = [num_input_layers, 2, 1]
+layers = [num_input_layers, 4,  1]
 
 parameters_dictionary = train_on_multiple_images(linearized_images=linearized_train_set_x_orig, layers=layers, labels=train_set_y, activation=activation, epochs=epochs, learning_rate=learning_rate, seed=seed, print_loss_flag=True, print_after_epochs=50)
 
 model_accuracy, network_outputs = test_model_multiple_images(linearized_train_set_x_orig, train_set_y, parameters_dictionary, layers, activation=activation, prediction_threshold=prediction_threshold)
-model_loss = calculate_loss_multiple_images(linearized_images=linearized_train_set_x_orig, parameters_dictionary=parameters_dictionary, labels=train_set_y)
+model_loss = calculate_loss_multiple_images(linearized_images=linearized_train_set_x_orig, parameters_dictionary=parameters_dictionary, labels=train_set_y, layers=layers)
 print('Trained model accuracy on training set: ', model_accuracy)
 print('Trained model loss on training set: ', model_loss)
 
-model_accuracy, _ = test_model_multiple_images(linearized_test_set_x_orig, test_set_y, parameters_dictionary, activation=activation, prediction_threshold=prediction_threshold)
-model_loss = calculate_loss_multiple_images(linearized_images=linearized_test_set_x_orig, parameters_dictionary=parameters_dictionary, labels=test_set_y)
+model_accuracy, _ = test_model_multiple_images(linearized_test_set_x_orig, test_set_y, parameters_dictionary, layers, activation=activation, prediction_threshold=prediction_threshold)
+model_loss = calculate_loss_multiple_images(linearized_images=linearized_test_set_x_orig, parameters_dictionary=parameters_dictionary, labels=test_set_y, layers=layers)
 print('Trained model accuracy on test set: ', model_accuracy)
 print('Trained model loss on test set: ', model_loss)
 
