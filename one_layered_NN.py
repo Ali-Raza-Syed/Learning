@@ -135,7 +135,8 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
             dB = np.clip(dB, -threshold, threshold)
         
         derivatives_dictionary['dW' + str(current_layer_num)] = dW
-        derivatives_dictionary['dB' + str(current_layer_num)] = dB
+        #adding dimension to convert from (n, ) --> (n, 1)
+        derivatives_dictionary['dB' + str(current_layer_num)] = np.expand_dims(dB, axis=1)
         
         dZ = dA * dA_dZ
     
@@ -148,7 +149,8 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
         dB = np.clip(dB, -threshold, threshold)
     
     derivatives_dictionary['dW1'] = dW
-    derivatives_dictionary['dB1'] = dB
+    #adding dimension to convert from (n, ) --> (n, 1)
+    derivatives_dictionary['dB1'] = np.expand_dims(dB, axis=1)
     
     return derivatives_dictionary
 
