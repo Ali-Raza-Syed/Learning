@@ -25,12 +25,13 @@ warnings.filterwarnings("error")
     #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
     #                                               'B2': second/output layer bias of shape (1, 1)}   
 def train_on_multiple_images(linearized_images, layers, labels, activation='ReLU', epochs=1000, learning_rate=0.01, seed=None, print_loss_flag=False, print_after_epochs=100):
-#    for layer_index, current_layer_num_of_nodes in enumerate(layers[1:]):
+    parameters_dictionary = {}
+    np.random.seed(seed)
     for layer_index in range(len(layers) - 1):
         current_layer_num_of_nodes = layers[layer_index + 1]
         previous_layer_num_of_nodes = layers[layer_index]
-        parameters_dictionary['W' + str(layer_index + 1)] = np.random.uniform(low=-1, high=1, size=(previous_layer_num_of_nodes, current_layer_num_of_nodes)) * 1e-5
-        parameters_dictionary['B' + str(layer_index + 1)] = np.random.uniform(low=-1, high=1, size=(current_layer_num_of_nodes, 1)) * 1e-5
+        parameters_dictionary['W' + str(layer_index + 1)] = np.random.uniform(low=-1, high=1, size=(previous_layer_num_of_nodes, current_layer_num_of_nodes)) * 1e-2
+        parameters_dictionary['B' + str(layer_index + 1)] = np.random.uniform(low=-1, high=1, size=(current_layer_num_of_nodes, 1)) * 1e-2
     
     for epoch_index in range(epochs): 
         cache = calculate_network_output(linearized_images=linearized_images, parameters_dictionary=parameters_dictionary, layers=layers, activation=activation)
@@ -102,71 +103,73 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
     derivatives_dictionary = {}
     network_outputs = cache['A' + str(output_layer_num)]
     
-    dZ = network_outputs - labels
-    A = cache['A' + str(num_of_hidden_layers)]
+    dZ_current_layer = network_outputs - labels
+
     #excluding 1st layer
     for layer_index in range(1, output_layer_num, 1)[::-1]:
         current_layer_num = layer_index + 1
         previous_layer_num = layer_index
-        W = parameters_dictionary['W' + str(current_layer_num)]
-        A = cache['A' + str(previous_layer_num)]
-        Z = cache['Z' + str(previous_layer_num)]
+        W_current_layer = parameters_dictionary['W' + str(current_layer_num)]
+        A_previous_layer = cache['A' + str(previous_layer_num)]
+        Z_previous_layer = cache['Z' + str(previous_layer_num)]
         
-        dW = (1/num_of_images) * np.matmul(A, dZ.T)
-        dB = (1/num_of_images) * np.sum(dZ, axis=1)
-        dA = np.matmul(W, dZ)
+        dW_current_layer = (1/num_of_images) * np.matmul(A_previous_layer, dZ_current_layer.T)
+        dB_current_layer = (1/num_of_images) * np.sum(dZ_current_layer, axis=1)
+        dA_previous_layer = np.matmul(W_current_layer, dZ_current_layer)
         
-        dA_dZ = np.copy(Z)
+        dA_previous_layer_dZ_previous_layer = np.copy(Z_previous_layer)
         if activation == 'LeakyReLU':
-            dA_dZ[dA_dZ >= 0] = 1
-            dA_dZ[dA_dZ < 0] = 0.1
+            dA_previous_layer_dZ_previous_layer[dA_previous_layer_dZ_previous_layer >= 0] = 1
+            dA_previous_layer_dZ_previous_layer[dA_previous_layer_dZ_previous_layer < 0] = 0.1
         elif activation == 'LeakyReLUReversed':
-            dA_dZ[dA_dZ >= 0] = 0.1
-            dA_dZ[dA_dZ < 0] = 1
+            dA_previous_layer_dZ_previous_layer[dA_previous_layer_dZ_previous_layer >= 0] = 0.1
+            dA_previous_layer_dZ_previous_layer[dA_previous_layer_dZ_previous_layer < 0] = 1
         elif activation == 'Sigmoid':
-            dA_dZ = sigmoid(dA_dZ) * (1 - sigmoid(dA_dZ))
+            dA_previous_layer_dZ_previous_layer = sigmoid(dA_previous_layer_dZ_previous_layer) * (1 - sigmoid(dA_previous_layer_dZ_previous_layer))
         elif activation == 'ReLU':
-            dA_dZ[dA_dZ >= 0] = 1
-            dA_dZ[dA_dZ < 0] = 0
+            dA_previous_layer_dZ_previous_layer[dA_previous_layer_dZ_previous_layer >= 0] = 1
+            dA_previous_layer_dZ_previous_layer[dA_previous_layer_dZ_previous_layer < 0] = 0
             
         if threshold_flag:
-            dW = np.clip(dW, -threshold, threshold)
-            dB = np.clip(dB, -threshold, threshold)
+            dW_current_layer = np.clip(dW_current_layer, -threshold, threshold)
+            dB_current_layer = np.clip(dB_current_layer, -threshold, threshold)
         
-        derivatives_dictionary['dW' + str(current_layer_num)] = dW
+        derivatives_dictionary['dW' + str(current_layer_num)] = dW_current_layer
         #adding dimension to convert from (n, ) --> (n, 1)
-        derivatives_dictionary['dB' + str(current_layer_num)] = np.expand_dims(dB, axis=1)
+        derivatives_dictionary['dB' + str(current_layer_num)] = np.expand_dims(dB_current_layer, axis=1)
         
-        dZ = dA * dA_dZ
+        #got updated to dZ previous layer
+        dZ_current_layer = dA_previous_layer * dA_previous_layer_dZ_previous_layer
     
     #for first layer
-    dW = (1/num_of_images) * np.matmul(network_inputs, dZ.T)
-    dB = (1/num_of_images) * np.sum(dZ, axis=1)
+    dW_current_layer = (1/num_of_images) * np.matmul(network_inputs, dZ_current_layer.T)
+    dB_current_layer = (1/num_of_images) * np.sum(dZ_current_layer, axis=1)
 
     if threshold_flag:
-        dW = np.clip(dW, -threshold, threshold)
-        dB = np.clip(dB, -threshold, threshold)
+        dW_current_layer = np.clip(dW_current_layer, -threshold, threshold)
+        dB_current_layer = np.clip(dB_current_layer, -threshold, threshold)
     
-    derivatives_dictionary['dW1'] = dW
+    derivatives_dictionary['dW1'] = dW_current_layer
     #adding dimension to convert from (n, ) --> (n, 1)
-    derivatives_dictionary['dB1'] = np.expand_dims(dB, axis=1)
+    derivatives_dictionary['dB1'] = np.expand_dims(dB_current_layer, axis=1)
     
     return derivatives_dictionary
 
 #%% calculate_derivatives test function
 def test_calculate_derivatives():
-    linearized_images = np.array([[1], [2], [3], [4]])
-    # 2 nodes in the layer
-    W1= np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
-    B1 = np.array([[1], [2]])
-    W2 = np.array([[2], [3]])
-    B2 = np.array([[2]])
-    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2}
+    linearized_images = np.array([[2, 1], [5, 2], [1, 3], [6, 4]])
+    layers = [4, 2, 2, 1]
+    W1= np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
+    B1 = np.array([[1.0], [2.0]])
+    W2 = np.array([[1.0, 2.0], [3.0, 4.0]])
+    B2 = np.array([[1.0], [2.0]])
+    W3 = np.array([[1.0], [2.0]])
+    B3 = np.array([[1.0]])
+    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2, 'W3': W3, 'B3': B3}
 
-    cache = calculate_network_output(linearized_images, parameters_dictionary, activation='ReLU')
+    cache = calculate_network_output(linearized_images, parameters_dictionary, layers=layers, activation='LeakyReLUReversed')
     
-#    network_inputs, labels, parameters_dictionary, cache, activation='ReLU', threshold_flag=False, threshold=1e-1
-    derivatives_dictionary = calculate_derivatives(network_inputs=linearized_images, labels=np.array([[0]]), parameters_dictionary=parameters_dictionary, cache=cache)
+    derivatives_dictionary = calculate_derivatives(network_inputs=linearized_images, labels=np.array([[0]]), parameters_dictionary=parameters_dictionary, cache=cache, layers=layers, activation='LeakyReLUReversed')
     a = 1
     
 #%% Loss function implementation
@@ -264,13 +267,16 @@ def calculate_network_output(linearized_images, parameters_dictionary, layers, a
     #tests logistic unit output for a 4 node input on one hidden layer network wiht 2 hidden units
 def test_calculate_network_output():
     linearized_images = np.array([[1], [2], [3], [4]])
-    # 2 nodes in the layer
-    W1= np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
-    B1 = np.array([[1], [2]])
-    W2 = np.array([[2], [3]])
-    B2 = np.array([[2]])
-    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2}
-    cache = calculate_network_output(linearized_images=linearized_images, parameters_dictionary=parameters_dictionary, activation='ReLU')
+    layers = [4, 2, 2, 1]
+    W1= np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
+    B1 = np.array([[1.0], [2.0]])
+    W2 = np.array([[1.0, 2.0], [3.0, 4.0]])
+    B2 = np.array([[1.0], [2.0]])
+    W3 = np.array([[1.0], [2.0]])
+    B3 = np.array([[1.0]])
+    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2, 'W3': W3, 'B3': B3}
+#    linearized_images, parameters_dictionary, layers, activation='ReLU'
+    cache = calculate_network_output(linearized_images=linearized_images, parameters_dictionary=parameters_dictionary, layers=layers, activation='LeakyReLUReversed')
     a = 1
 
 #%%Function to test model on  multiple images
@@ -304,17 +310,17 @@ def test_model_multiple_images(linearized_images, labels, parameters_dictionary,
 #Loading the data (cat/non-cat)
 train_set_x_orig, train_set_y, test_set_x_orig, test_set_y, classes = load_dataset()
 
-activation = 'ReLU'
+activation = 'LeakyReLU'
 prediction_threshold = 0.7
 learning_rate = 1e-2
-epochs = 300
-seed = 1
+epochs = 1000
+seed = 2
 
 linearized_train_set_x_orig = linearize_images(train_set_x_orig)
 linearized_test_set_x_orig = linearize_images(test_set_x_orig)
 
 num_input_layers = np.shape(linearized_train_set_x_orig)[0]
-layers = [num_input_layers, 4,  1]
+layers = [num_input_layers, 2, 2, 1]
 
 parameters_dictionary = train_on_multiple_images(linearized_images=linearized_train_set_x_orig, layers=layers, labels=train_set_y, activation=activation, epochs=epochs, learning_rate=learning_rate, seed=seed, print_loss_flag=True, print_after_epochs=50)
 
@@ -328,8 +334,8 @@ model_loss = calculate_loss_multiple_images(linearized_images=linearized_test_se
 print('Trained model accuracy on test set: ', model_accuracy)
 print('Trained model loss on test set: ', model_loss)
 
-#%% Logistic unit output test
-#test_logistic_unit_output()
+%% Logistic unit output test
+test_calculate_network_output()
 
 #%% calculate test_calculate_derivatives
 #test_calculate_derivatives()
