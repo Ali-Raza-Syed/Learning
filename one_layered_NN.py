@@ -20,14 +20,11 @@ warnings.filterwarnings("error")
     # -print_loss_flag --> whether to print loss or not, bool
     # -print_after_epochs --> number of epochs after which to print the loss
 # outputs:
-    # -parameters_dictionary --> final parameters dictionary after model fitting,
-    #                            {'weights': weights matrix of shape (number of image nodes or pixels, number of nodes in first layer),
-    #                            'bias': bias, matrix of shape (number of nodes in first layer, 1),
-    #                            'z': useless as an output from here. It was meant for using in calculating derivatives}    
+    # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
+    #                                               'B1': first layer biases of shape (num of inputs, 1),
+    #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
+    #                                               'B2': second/output layer bias of shape (1, 1)}   
 def train_on_multiple_images(linearized_images, layers, labels, activation='ReLU', epochs=1000, learning_rate=0.01, seed=None, print_loss_flag=False, print_after_epochs=100):
-    np.random.seed(seed)
-    parameters_dictionary = {}
-    #skip first element in layers
 #    for layer_index, current_layer_num_of_nodes in enumerate(layers[1:]):
     for layer_index in range(len(layers) - 1):
         current_layer_num_of_nodes = layers[layer_index + 1]
@@ -49,8 +46,10 @@ def train_on_multiple_images(linearized_images, layers, labels, activation='ReLU
     #                                               'B1': first layer biases of shape (num of inputs, 1),
     #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
     #                                               'B2': second/output layer bias of shape (1, 1)}
-    # -derivatives_dictionary --> dictionary having {'dw': derivative of Loss w.r.t weights, of shape (number of weights, number of nodes in the layer),
-    #                                               'db': derivative of Loss w.r.t biases of shape (number of nodes in the layer, 1)}
+    # -derivatives_dictionary --> dictionary having {'dW1': derivative of W1 w.r.t loss, of shape (num of inputs, num of nodes in first layer), 
+    #                                                'dB1': derivative of B1 w.r.t loss of shape (num of inputs, 1),
+    #                                                'dW2': derivative of W2 w.r.t loss of shape(num of nodes in first layer, 1),
+    #                                                'dB2': derivative of B2 w.r.t loss of shape (1, 1)}
     # -learning_rate --> learning rate for updation of parameters
 # output:
     # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
@@ -143,7 +142,7 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
     #for first layer
     dW = (1/num_of_images) * np.matmul(network_inputs, dZ.T)
     dB = (1/num_of_images) * np.sum(dZ, axis=1)
-    
+
     if threshold_flag:
         dW = np.clip(dW, -threshold, threshold)
         dB = np.clip(dB, -threshold, threshold)
@@ -156,20 +155,18 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
 
 #%% calculate_derivatives test function
 def test_calculate_derivatives():
-    #2x2x1 image
-    image = np.array([[[2], [5]], [[4], [1]]])
+    linearized_images = np.array([[1], [2], [3], [4]])
     # 2 nodes in the layer
-    weights = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
-    bias = np.array([[1], [2]])
-#    parameters_dictionary = {'weights': weights, 'bias': bias}
-#    network_output = logistic_unit_output(image=image, parameters_dictionary=parameters_dictionary, activation='sigmoid', prediction_threshold_flag=False)
-    #can also come from logistic_unit_output function
-    network_output = 0.88
-    z = np.array([[0.5], [0.6]])
-    parameters_dictionary = {'weights': weights, 'bias': bias, 'z': z}
-    true_output = 1
+    W1= np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    B1 = np.array([[1], [2]])
+    W2 = np.array([[2], [3]])
+    B2 = np.array([[2]])
+    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2}
+
+    cache = calculate_network_output(linearized_images, parameters_dictionary, activation='ReLU')
     
-    derivatives_dictionary = calculate_derivatives(network_input=image, network_output=network_output, true_output=true_output, activation='sigmoid', parameters_dictionary=parameters_dictionary, threshold_flag=False, threshold=1e-1)
+#    network_inputs, labels, parameters_dictionary, cache, activation='ReLU', threshold_flag=False, threshold=1e-1
+    derivatives_dictionary = calculate_derivatives(network_inputs=linearized_images, labels=np.array([[0]]), parameters_dictionary=parameters_dictionary, cache=cache)
     a = 1
     
 #%% Loss function implementation
@@ -264,14 +261,16 @@ def calculate_network_output(linearized_images, parameters_dictionary, layers, a
     return cache
 
 #%% logistic_unit_output test function
-def test_logistic_unit_output():
-    #2x2x1 image
-    image = np.array([[[2], [5]], [[4], [1]]])
+    #tests logistic unit output for a 4 node input on one hidden layer network wiht 2 hidden units
+def test_calculate_network_output():
+    linearized_images = np.array([[1], [2], [3], [4]])
     # 2 nodes in the layer
-    weights = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
-    bias = np.array([[1], [2]])
-    parameters_dictionary = {'weights': weights, 'bias': bias}
-    prediction_sigmoid = logistic_unit_output(image=image, parameters_dictionary=parameters_dictionary, activation='ReLU', prediction_threshold_flag=True)
+    W1= np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    B1 = np.array([[1], [2]])
+    W2 = np.array([[2], [3]])
+    B2 = np.array([[2]])
+    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2}
+    cache = calculate_network_output(linearized_images=linearized_images, parameters_dictionary=parameters_dictionary, activation='ReLU')
     a = 1
 
 #%%Function to test model on  multiple images
