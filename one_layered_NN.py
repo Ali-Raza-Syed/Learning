@@ -334,7 +334,7 @@ model_loss = calculate_loss_multiple_images(linearized_images=linearized_test_se
 print('Trained model accuracy on test set: ', model_accuracy)
 print('Trained model loss on test set: ', model_loss)
 
-%% Logistic unit output test
+#%% Logistic unit output test
 test_calculate_network_output()
 
 #%% calculate test_calculate_derivatives
