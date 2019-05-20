@@ -143,9 +143,9 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
     
     dZ1 = dA1 * d_A1_d_Z1
     
-    dW1 = (1/num_of_images) * np.matmul(network_inputs, dZ2.T)
-    dB1 = (1/num_of_images) * np.sum(dZ1)
-    
+    dW1 = (1/num_of_images) * np.matmul(network_inputs, dZ1.T)
+    dB1 = (1/num_of_images) * np.sum(dZ1, axis=1)
+    dB1 = np.expand_dims(dB1, axis=1)
     if threshold_flag:
         dZ1 = np.clip(dZ1, -threshold, threshold)
         dB1 = np.clip(dB1, -threshold, threshold)
@@ -158,20 +158,18 @@ def calculate_derivatives(network_inputs, labels, parameters_dictionary, cache, 
 
 #%% calculate_derivatives test function
 def test_calculate_derivatives():
-    #2x2x1 image
-    image = np.array([[[2], [5]], [[4], [1]]])
+    linearized_images = np.array([[1], [2], [3], [4]])
     # 2 nodes in the layer
-    weights = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
-    bias = np.array([[1], [2]])
-#    parameters_dictionary = {'weights': weights, 'bias': bias}
-#    network_output = logistic_unit_output(image=image, parameters_dictionary=parameters_dictionary, activation='sigmoid', prediction_threshold_flag=False)
-    #can also come from logistic_unit_output function
-    network_output = 0.88
-    z = np.array([[0.5], [0.6]])
-    parameters_dictionary = {'weights': weights, 'bias': bias, 'z': z}
-    true_output = 1
+    W1= np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    B1 = np.array([[1], [2]])
+    W2 = np.array([[2], [3]])
+    B2 = np.array([[2]])
+    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2}
+
+    cache = calculate_network_output(linearized_images, parameters_dictionary, activation='ReLU')
     
-    derivatives_dictionary = calculate_derivatives(network_input=image, network_output=network_output, true_output=true_output, activation='sigmoid', parameters_dictionary=parameters_dictionary, threshold_flag=False, threshold=1e-1)
+#    network_inputs, labels, parameters_dictionary, cache, activation='ReLU', threshold_flag=False, threshold=1e-1
+    derivatives_dictionary = calculate_derivatives(network_inputs=linearized_images, labels=np.array([[0]]), parameters_dictionary=parameters_dictionary, cache=cache)
     a = 1
     
 #%% Loss function implementation
@@ -265,14 +263,16 @@ def calculate_network_output(linearized_images, parameters_dictionary, activatio
     return cache
 
 #%% logistic_unit_output test function
-def test_logistic_unit_output():
-    #2x2x1 image
-    image = np.array([[[2], [5]], [[4], [1]]])
+    #tests logistic unit output for a 4 node input on one hidden layer network wiht 2 hidden units
+def test_calculate_network_output():
+    linearized_images = np.array([[1], [2], [3], [4]])
     # 2 nodes in the layer
-    weights = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
-    bias = np.array([[1], [2]])
-    parameters_dictionary = {'weights': weights, 'bias': bias}
-    prediction_sigmoid = logistic_unit_output(image=image, parameters_dictionary=parameters_dictionary, activation='ReLU', prediction_threshold_flag=True)
+    W1= np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    B1 = np.array([[1], [2]])
+    W2 = np.array([[2], [3]])
+    B2 = np.array([[2]])
+    parameters_dictionary = {'W1': W1, 'B1': B1, 'W2': W2, 'B2': B2}
+    cache = calculate_network_output(linearized_images=linearized_images, parameters_dictionary=parameters_dictionary, activation='ReLU')
     a = 1
 
 #%%Function to test model on  multiple images
@@ -311,7 +311,7 @@ prediction_threshold = 0.7
 learning_rate = 0.5e-3
 epochs = 700
 seed = 1
-num_of_nodes = 2
+num_of_nodes = 100
 
 linearized_train_set_x_orig = linearize_images(train_set_x_orig)
 linearized_test_set_x_orig = linearize_images(test_set_x_orig)
