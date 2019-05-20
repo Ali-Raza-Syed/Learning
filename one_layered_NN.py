@@ -20,10 +20,10 @@ warnings.filterwarnings("error")
     # -print_loss_flag --> whether to print loss or not, bool
     # -print_after_epochs --> number of epochs after which to print the loss
 # outputs:
-    # -parameters_dictionary --> final parameters dictionary after model fitting,
-    #                            {'weights': weights matrix of shape (number of image nodes or pixels, number of nodes in first layer),
-    #                            'bias': bias, matrix of shape (number of nodes in first layer, 1),
-    #                            'z': useless as an output from here. It was meant for using in calculating derivatives}    
+    # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
+    #                                               'B1': first layer biases of shape (num of inputs, 1),
+    #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
+    #                                               'B2': second/output layer bias of shape (1, 1)}   
 def train_on_multiple_images(linearized_images, num_of_nodes, labels, activation='ReLU', epochs=1000, learning_rate=0.01, seed=None, print_loss_flag=False, print_after_epochs=100):
     num_of_weights = np.shape(linearized_images)[0]
     np.random.seed(seed)
@@ -49,8 +49,10 @@ def train_on_multiple_images(linearized_images, num_of_nodes, labels, activation
     #                                               'B1': first layer biases of shape (num of inputs, 1),
     #                                               'W2': second/output layer weights of shape(num of nodes in first layer, 1),
     #                                               'B2': second/output layer bias of shape (1, 1)}
-    # -derivatives_dictionary --> dictionary having {'dw': derivative of Loss w.r.t weights, of shape (number of weights, number of nodes in the layer),
-    #                                               'db': derivative of Loss w.r.t biases of shape (number of nodes in the layer, 1)}
+    # -derivatives_dictionary --> dictionary having {'dW1': derivative of W1 w.r.t loss, of shape (num of inputs, num of nodes in first layer), 
+    #                                                'dB1': derivative of B1 w.r.t loss of shape (num of inputs, 1),
+    #                                                'dW2': derivative of W2 w.r.t loss of shape(num of nodes in first layer, 1),
+    #                                                'dB2': derivative of B2 w.r.t loss of shape (1, 1)}
     # -learning_rate --> learning rate for updation of parameters
 # output:
     # -parameters_dictionary --> dictionary having {'W1': first layer weights of shape (num of inputs, num of nodes in first layer), 
