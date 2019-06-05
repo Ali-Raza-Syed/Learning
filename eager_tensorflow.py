@@ -31,6 +31,8 @@ np.random.seed(seed)
 W = np.random.uniform(low=-1, high=1, size=(num_input_features, num_of_nodes)) * 1e-5  
 B = np.random.uniform(low=-1, high=1, size=(num_of_nodes, 1)) * 1e-5
 
+W = tf.Variable(W, tf.float64)
+B = tf.Variable(B, tf.float64)
 
 dataset = linearize_images(train_set_x_orig)
 labels = train_set_y.T
