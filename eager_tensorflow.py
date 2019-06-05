@@ -40,14 +40,21 @@ labels = train_set_y.T
 dataset = tf.data.Dataset.from_tensors((dataset, labels))
 
 for inputs, labels in dataset.take(-1):
+
+#    
+#    A = tf.Variable([[0.999], [0.999]], tf.float64)
+#    labels = tf.Variable([[1], [1]], tf.float64)
     
     bce = tf.keras.losses.BinaryCrossentropy()
     with tf.GradientTape() as tape:
-        
+        Z = tf.matmul(tf.cast(inputs, tf.float64), W) + tf.transpose(B)
+        A = tf.sigmoid(Z)
+#        tape.watch(Z)
+#        tape.watch(A)
+#        loss = bce(tf.cast(A, tf.float64), tf.cast(labels, tf.float64))
         loss = bce(tf.cast(A, tf.float64), tf.cast(labels, tf.float64))
-        print('loss = ', loss)
-        grad = tape.gradient(loss, B)
-        print('grad = ', grad)
+    grad = tape.gradient(loss, W)    
+    print(grad)
 
 #w = tf.Variable([[2.0]])
 #with tf.GradientTape() as tape:
