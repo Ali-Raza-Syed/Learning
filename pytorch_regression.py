@@ -25,9 +25,8 @@ num_of_nodes = 1
 num_images = train_set_x_orig.shape[0]
 num_input_features = train_set_x_orig.shape[1] * train_set_x_orig.shape[2] * train_set_x_orig.shape[3]
 
-dataset = linearize_images(train_set_x_orig)
-labels = train_set_y.T
-
+dataset = torch.tensor(linearize_images(train_set_x_orig), dtype=torch.float64)
+labels = torch.tensor(train_set_y.T, dtype=torch.float64)
 
 model = torch.nn.Sequential(
     torch.nn.Linear(num_input_features, 1),
