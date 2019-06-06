@@ -32,11 +32,11 @@ np.random.seed(seed)
 weights = np.random.uniform(low=-1, high=1, size=(num_input_features, 1)) * 1e-5
 bias = np.random.uniform(low=-1, high=1, size=(1, 1)) * 1e-5
 
-W = torch.tensor(weights, dtype=torch.float32, requires_grad=True)
-B = torch.tensor(bias, dtype=torch.float32, requires_grad=True)
+W = torch.tensor(weights, dtype=torch.float32, requires_grad=True, device=torch.device("cpu"))
+B = torch.tensor(bias, dtype=torch.float32, requires_grad=True, device=torch.device("cpu"))
 
 for t in range(500):
-    Z = dataset.mm(W)
+    Z = dataset.mm(W).add(torch.transpose(B, 0, 1))
     y_pred = torch.nn.functional.sigmoid(Z)
     loss = torch.nn.functional.binary_cross_entropy(input=y_pred, target=labels)
     print(t, loss.item())
@@ -45,3 +45,4 @@ for t in range(500):
         W -= learning_rate * W.grad
         B -= learning_rate * B.grad
         W.grad.zero_()
+        B.grad.zero_()
