@@ -25,22 +25,19 @@ num_of_nodes = 1
 num_images = train_set_x_orig.shape[0]
 num_input_features = train_set_x_orig.shape[1] * train_set_x_orig.shape[2] * train_set_x_orig.shape[3]
 
-dataset = torch.tensor(linearize_images(train_set_x_orig), dtype=torch.float64)
-labels = torch.tensor(train_set_y.T, dtype=torch.float64)
+dataset = torch.tensor(linearize_images(train_set_x_orig), dtype=torch.float32)
+labels = torch.tensor(train_set_y.T, dtype=torch.float32)
 
 model = torch.nn.Sequential(
     torch.nn.Linear(num_input_features, 1),
     torch.nn.Sigmoid()
 )
-y_pred = model(dataset)
-loss_fn = torch.nn.functional.binary_cross_entropy(input=y_pred, target=labels, reduction='mean')
 
 learning_rate = 1e-4
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 for t in range(500):
-    y_pred = model(x)
-
-    loss = loss_fn(y_pred, y)
+    y_pred = model(dataset)
+    loss_fn = torch.nn.functional.binary_cross_entropy(input=y_pred, target=labels, reduction='mean')
     print(t, loss.item())
     
     optimizer.zero_grad()
