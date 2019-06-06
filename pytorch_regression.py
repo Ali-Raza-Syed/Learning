@@ -40,7 +40,7 @@ optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 for t in range(500):
     y_pred = model(dataset)
 
-    loss = loss_fn(y_pred, y)
+    loss = loss_fn(y_pred, labels)
     print(t, loss.item())
     
     optimizer.zero_grad()
