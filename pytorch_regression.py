@@ -38,10 +38,12 @@ B = torch.tensor(bias, dtype=torch.float32, requires_grad=True, device=torch.dev
 for t in range(500):
     Z = dataset.mm(W).add(torch.transpose(B, 0, 1))
     
-    y_pred = torch.Tensor.clone(Z)
-    y_pred[y_pred >= 0.5] = 1
-    y_pred[y_pred < 0.5] = 0
+    y_pred = torch.where(Z >= prediction_threshold, torch.ones(num_images, 1), torch.zeros(num_images, 1))
     
+#    y_pred = torch.nn.Identity(Z)
+#    y_pred[y_pred >= 0.5] = 1
+#    y_pred[y_pred < 0.5] = 0
+#    
 #    y_pred = torch.nn.functional.sigmoid(Z)
     loss = torch.nn.functional.binary_cross_entropy(input=y_pred, target=labels)
     print(t, loss.item())
