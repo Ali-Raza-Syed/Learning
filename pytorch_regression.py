@@ -33,11 +33,14 @@ model = torch.nn.Sequential(
     torch.nn.Sigmoid()
 )
 
+loss_fn = torch.nn.BCELoss()
+
 learning_rate = 1e-4
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 for t in range(500):
     y_pred = model(dataset)
-    loss_fn = torch.nn.functional.binary_cross_entropy(input=y_pred, target=labels, reduction='mean')
+
+    loss = loss_fn(y_pred, y)
     print(t, loss.item())
     
     optimizer.zero_grad()
