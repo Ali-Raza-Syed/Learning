@@ -2,3 +2,5 @@
 *.out
 *.cmp
 *.tst
+*.dat
+*.hack
