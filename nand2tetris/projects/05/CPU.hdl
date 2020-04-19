@@ -40,4 +40,42 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+    ALU(x=dOut,y=op2,zx=instruction[11],nx=instruction[10],zy=instruction[9],ny=instruction[8],f=instruction[7],no=instruction[6],out=aluOut,zr=zr,ng=ng);
+
+    //check if jump instruction
+    Or(a=instruction[0],b=instruction[1],out=jOut1);
+    Or(a=jOut1,b=instruction[2],out=jOut2);
+    And(a=jOut2,b=instruction[15],out=jIns);
+
+    //select between A or M for operand2 of ALU
+    Mux16(a=aOut,b=inM,sel=instruction[12],out=op2);
+
+    Not(in=instruction[15],out=notinstruction15);
+    Or(a=instruction[5],b=notinstruction15,out=or3);
+
+    Mux16(a[15]=false,a[0..14]=instruction[0..14],b=aluOut,sel=instruction[15],out=muxOut1);
+
+    ARegister(in=muxOut1,load=or3,out[0..14]=addressM,out=aOut);
+
+
+    And(a=instruction[4],b=instruction[15],out=and2);    
+    DRegister(in=muxOut1,load=and2,out=dOut);
+
+    //outM=aluOut;
+    //writeM=instruction[3];
+    Mux16(a=false,b=aluOut,sel=instruction[3],out=outM);
+    And(a=instruction[3],b=instruction[15],out=writeM);
+
+    Not(in=zr,out=notzr);
+    Not(in=ng,out=notng);
+
+    And(a=notzr,b=notng,out=and1);
+    Or(a=zr,b=notng,out=or1);
+    Or(a=zr,b=ng,out=or2);
+
+    //using this mux because simple Mux8Way wasn't built
+    Mux8Way16(a[0]=false,b[0]=and1,c[0]=zr,d[0]=or1,e[0]=ng,f[0]=notzr,g[0]=or2,h[0]=true,sel=instruction[0..2],out[0]=jSel);
+
+    And(a=jSel,b=instruction[15],out=and3);
+    PC(in=aOut,load=and3,inc=true,reset=reset,out[0..14]=pc);
 }
